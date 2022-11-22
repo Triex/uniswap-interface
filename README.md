@@ -50,16 +50,3 @@ The Uniswap Interface supports swapping, adding liquidity, removing liquidity an
 The Uniswap V1 interface for mainnet and testnets is accessible via IPFS gateways
 linked from the [v1.0.0 release](https://github.com/Uniswap/uniswap-interface/releases/tag/v1.0.0).
 
-# Deploy Notes
-
-Currently on Sepolia testnet there is no functional Uniswap fork.
-
-To create docs later, and allow anyone to use this on Sepolia for testing.
-
-INIT_HASH : `0xf0e60e1779ec5ef88ad36bab3e3e0cad28189353ab5bf1f719a2855de1c74e52`
-
-CORE / FACTORY : **`0x57809a3af613b75d23a1f369034036e6efeef502`**
-https://sepolia.etherscan.io/address/0x57809a3af613b75d23a1f369034036e6efeef502#code
-
-ROUTER / PERIPHERY : **`0xa32bc0e6af3b6c164b1bffa2d4a0530f9aaaaaa5`**
-https://sepolia.etherscan.io/address/0xa32bc0e6af3b6c164b1bffa2d4a0530f9aaaaaa5#contracts
