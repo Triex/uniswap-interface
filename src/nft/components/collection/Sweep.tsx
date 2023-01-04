@@ -2,7 +2,7 @@ import 'rc-slider/assets/index.css'
 
 import { BigNumber } from '@ethersproject/bignumber'
 import { formatEther, parseEther } from '@ethersproject/units'
-import { SweepFetcherParams, useLazyLoadSweepAssetsQuery } from 'graphql/data/nft/Asset'
+import { SweepFetcherParams, useSweepNftAssets } from 'graphql/data/nft/Asset'
 import { useBag, useCollectionFilters } from 'nft/hooks'
 import { GenieAsset, isPooledMarket, Markets } from 'nft/types'
 import { calcPoolPrice, calcSudoSwapPrice, formatWeiToDecimal, isInSameSudoSwapPool } from 'nft/utils'
@@ -136,7 +136,7 @@ interface NftDisplayProps {
   nfts: GenieAsset[]
 }
 
-export const NftDisplay = ({ nfts }: NftDisplayProps) => {
+const NftDisplay = ({ nfts }: NftDisplayProps) => {
   return (
     <NftDisplayContainer>
       {[...Array(3)].map((_, index) => {
@@ -168,6 +168,7 @@ export const Sweep = ({ contractAddress, minPrice, maxPrice }: SweepProps) => {
   const removeAssetsFromBag = useBag((state) => state.removeAssetsFromBag)
   const itemsInBag = useBag((state) => state.itemsInBag)
   const lockSweepItems = useBag((state) => state.lockSweepItems)
+  const setBagExpanded = useBag((state) => state.setBagExpanded)
 
   const traits = useCollectionFilters((state) => state.traits)
   const markets = useCollectionFilters((state) => state.markets)
@@ -177,13 +178,13 @@ export const Sweep = ({ contractAddress, minPrice, maxPrice }: SweepProps) => {
   const nftxParams = useSweepFetcherParams(contractAddress, Markets.NFTX, minPrice, maxPrice)
   const nft20Params = useSweepFetcherParams(contractAddress, Markets.NFT20, minPrice, maxPrice)
   // These calls will suspend if the query is not yet loaded.
-  const collectionAssets = useLazyLoadSweepAssetsQuery(collectionParams)
-  const sudoSwapAsssets = useLazyLoadSweepAssetsQuery(sudoSwapParams)
-  const nftxAssets = useLazyLoadSweepAssetsQuery(nftxParams)
-  const nft20Assets = useLazyLoadSweepAssetsQuery(nft20Params)
+  const { data: collectionAssets } = useSweepNftAssets(collectionParams)
+  const { data: sudoSwapAssets } = useSweepNftAssets(sudoSwapParams)
+  const { data: nftxAssets } = useSweepNftAssets(nftxParams)
+  const { data: nft20Assets } = useSweepNftAssets(nft20Params)
 
   const { sortedAssets, sortedAssetsTotalEth } = useMemo(() => {
-    if (!collectionAssets && !sudoSwapAsssets && !nftxAssets && !nft20Assets) {
+    if (!collectionAssets && !sudoSwapAssets && !nftxAssets && !nft20Assets) {
       return { sortedAssets: undefined, sortedAssetsTotalEth: BigNumber.from(0) }
     }
 
@@ -192,12 +193,12 @@ export const Sweep = ({ contractAddress, minPrice, maxPrice }: SweepProps) => {
 
     let jointCollections: GenieAsset[] = []
 
-    if (sudoSwapAsssets) jointCollections = [...jointCollections, ...sudoSwapAsssets]
+    if (sudoSwapAssets) jointCollections = [...jointCollections, ...sudoSwapAssets]
     if (nftxAssets) jointCollections = [...jointCollections, ...nftxAssets]
     if (nft20Assets) jointCollections = [...jointCollections, ...nft20Assets]
 
     const sudoSwapAssetsInJointCollections = jointCollections.filter(
-      (sweepAsset) => sweepAsset.marketplace === Markets.Sudoswap
+      (sweepAsset) => sweepAsset.marketplace === Markets.Sudoswap && !sweepAsset.susFlag
     )
 
     jointCollections.forEach((asset) => {
@@ -215,8 +216,8 @@ export const Sweep = ({ contractAddress, minPrice, maxPrice }: SweepProps) => {
           const poolPrice = calcPoolPrice(asset, isNFTX ? counterNFTX : counterNFT20)
           if (BigNumber.from(poolPrice).gt(0)) {
             isNFTX ? counterNFTX++ : counterNFT20++
-            asset.priceInfo.ETHPrice = poolPrice
           }
+          asset.priceInfo.ETHPrice = poolPrice
         }
       }
     })
@@ -235,7 +236,7 @@ export const Sweep = ({ contractAddress, minPrice, maxPrice }: SweepProps) => {
       0,
       Math.max(
         collectionAssets?.length ?? 0,
-        sudoSwapAsssets?.length ?? 0,
+        sudoSwapAssets?.length ?? 0,
         nftxAssets?.length ?? 0,
         nft20Assets?.length ?? 0
       )
@@ -248,7 +249,7 @@ export const Sweep = ({ contractAddress, minPrice, maxPrice }: SweepProps) => {
         BigNumber.from(0)
       ),
     }
-  }, [collectionAssets, sudoSwapAsssets, nftxAssets, nft20Assets])
+  }, [collectionAssets, sudoSwapAssets, nftxAssets, nft20Assets])
 
   const { sweepItemsInBag, sweepEthPrice } = useMemo(() => {
     const sweepItemsInBag = itemsInBag
@@ -279,6 +280,8 @@ export const Sweep = ({ contractAddress, minPrice, maxPrice }: SweepProps) => {
   const handleSweep = (value: number) => {
     if (sortedAssets) {
       if (isItemsToggled) {
+        if (sweepItemsInBag.length === 0 && value > 0) setBagExpanded({ bagExpanded: true })
+
         if (sweepItemsInBag.length < value) {
           addAssetsToBag(sortedAssets.slice(sweepItemsInBag.length, value), true)
         } else {
@@ -302,6 +305,7 @@ export const Sweep = ({ contractAddress, minPrice, maxPrice }: SweepProps) => {
           }
 
           if (wishAssets.length > 0) {
+            if (sweepItemsInBag.length === 0) setBagExpanded({ bagExpanded: true })
             addAssetsToBag(wishAssets, true)
           }
         } else {
@@ -359,7 +363,7 @@ export const Sweep = ({ contractAddress, minPrice, maxPrice }: SweepProps) => {
   }
 
   return (
-    <SweepContainer>
+    <SweepContainer data-testid="nft-sweep-slider">
       <SweepLeftmostContainer>
         <SweepHeaderContainer>
           <ThemedText.SubHeader color="textPrimary" lineHeight="20px" paddingTop="6px" paddingBottom="6px">
@@ -431,7 +435,7 @@ export const Sweep = ({ contractAddress, minPrice, maxPrice }: SweepProps) => {
 
 const ALL_OTHER_MARKETS = [Markets.Opensea, Markets.X2Y2, Markets.LooksRare]
 
-export function useSweepFetcherParams(
+function useSweepFetcherParams(
   contractAddress: string,
   market: Markets.Sudoswap | Markets.NFTX | Markets.NFT20 | 'others',
   minPrice: string,

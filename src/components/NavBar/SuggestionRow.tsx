@@ -1,5 +1,6 @@
 import { sendAnalyticsEvent } from '@uniswap/analytics'
-import { EventName } from '@uniswap/analytics-events'
+import { InterfaceEventName } from '@uniswap/analytics-events'
+import { formatUSDPrice } from '@uniswap/conedison/format'
 import { useWeb3React } from '@web3-react/core'
 import clsx from 'clsx'
 import AssetLogo from 'components/Logo/AssetLogo'
@@ -20,12 +21,27 @@ import { putCommas } from 'nft/utils/putCommas'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import styled from 'styled-components/macro'
-import { formatDollar } from 'utils/formatNumbers'
 
+import { getDeltaArrow } from '../Tokens/TokenDetails/PriceChart'
 import * as styles from './SearchBar.css'
 
 const StyledLogoContainer = styled(LogoContainer)`
   margin-right: 8px;
+`
+const PriceChangeContainer = styled.div`
+  display: flex;
+  align-items: center;
+`
+
+const PriceChangeText = styled.span<{ isNegative: boolean }>`
+  font-size: 14px;
+  line-height: 20px;
+  color: ${({ theme, isNegative }) => (isNegative ? theme.accentFailure : theme.accentSuccess)};
+`
+
+const ArrowCell = styled.span`
+  padding-top: 5px;
+  padding-right: 3px;
 `
 
 interface CollectionRowProps {
@@ -55,7 +71,7 @@ export const CollectionRow = ({
   const handleClick = useCallback(() => {
     addToSearchHistory(collection)
     toggleOpen()
-    sendAnalyticsEvent(EventName.NAVBAR_RESULT_SELECTED, { ...eventProperties })
+    sendAnalyticsEvent(InterfaceEventName.NAVBAR_RESULT_SELECTED, { ...eventProperties })
   }, [addToSearchHistory, collection, toggleOpen, eventProperties])
 
   useEffect(() => {
@@ -141,7 +157,7 @@ export const TokenRow = ({ token, isHovered, setHoveredIndex, toggleOpen, index,
   const handleClick = useCallback(() => {
     addToSearchHistory(token)
     toggleOpen()
-    sendAnalyticsEvent(EventName.NAVBAR_RESULT_SELECTED, { ...eventProperties })
+    sendAnalyticsEvent(InterfaceEventName.NAVBAR_RESULT_SELECTED, { ...eventProperties })
   }, [addToSearchHistory, toggleOpen, token, eventProperties])
 
   const [bridgedAddress, bridgedChain, L2Icon] = useBridgedAddress(token)
@@ -160,6 +176,8 @@ export const TokenRow = ({ token, isHovered, setHoveredIndex, toggleOpen, index,
       document.removeEventListener('keydown', keyDownHandler)
     }
   }, [toggleOpen, isHovered, token, navigate, handleClick, tokenDetailsPath])
+
+  const arrow = getDeltaArrow(token.price24hChange, 18)
 
   return (
     <Link
@@ -194,13 +212,16 @@ export const TokenRow = ({ token, isHovered, setHoveredIndex, toggleOpen, index,
       <Column className={styles.suggestionSecondaryContainer}>
         {token.priceUsd && (
           <Row gap="4">
-            <Box className={styles.primaryText}>{formatDollar({ num: token.priceUsd, isPrice: true })}</Box>
+            <Box className={styles.primaryText}>{formatUSDPrice(token.priceUsd)}</Box>
           </Row>
         )}
         {token.price24hChange && (
-          <Box className={styles.secondaryText} color={token.price24hChange >= 0 ? 'green400' : 'red400'}>
-            {token.price24hChange.toFixed(2)}%
-          </Box>
+          <PriceChangeContainer>
+            <ArrowCell>{arrow}</ArrowCell>
+            <PriceChangeText isNegative={token.price24hChange < 0}>
+              {Math.abs(token.price24hChange).toFixed(2)}%
+            </PriceChangeText>
+          </PriceChangeContainer>
         )}
       </Column>
     </Link>

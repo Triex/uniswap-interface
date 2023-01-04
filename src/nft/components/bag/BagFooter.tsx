@@ -2,7 +2,7 @@ import { BigNumber } from '@ethersproject/bignumber'
 import { parseEther } from '@ethersproject/units'
 import { Trans } from '@lingui/macro'
 import { TraceEvent } from '@uniswap/analytics'
-import { BrowserEvent, ElementName, EventName } from '@uniswap/analytics-events'
+import { BrowserEvent, InterfaceElementName, NFTEventName } from '@uniswap/analytics-events'
 import { useWeb3React } from '@web3-react/core'
 import Loader from 'components/Loader'
 import { SupportedChainId } from 'constants/chains'
@@ -22,13 +22,17 @@ import { switchChain } from 'utils/switchChain'
 
 import * as styles from './BagFooter.css'
 
+const FooterContainer = styled.div`
+  padding: 0px 12px;
+`
+
 const Footer = styled.div`
   border-top: 1px solid ${({ theme }) => theme.backgroundOutline};
   color: ${({ theme }) => theme.textPrimary};
   display: flex;
   flex-direction: column;
-  margin-bottom: 8px;
-  padding: 12px 16px;
+  margin: 0px 16px 8px;
+  padding: 12px 0px;
   border-bottom-left-radius: 12px;
   border-bottom-right-radius: 12px;
 `
@@ -149,9 +153,9 @@ export const BagFooter = ({
   const isPending = PENDING_BAG_STATUSES.includes(bagStatus)
 
   return (
-    <Column className={styles.footerContainer}>
+    <FooterContainer>
       <Footer>
-        <Column gap="4" paddingTop="8" paddingBottom="20">
+        <Column gap="4" paddingTop="8" paddingBottom={warningText ? '8' : '20'}>
           <Row justifyContent="space-between">
             <Box>
               <ThemedText.HeadlineSmall>Total</ThemedText.HeadlineSmall>
@@ -168,8 +172,8 @@ export const BagFooter = ({
         </Column>
         <TraceEvent
           events={[BrowserEvent.onClick]}
-          name={EventName.NFT_BUY_BAG_PAY}
-          element={ElementName.NFT_BUY_BAG_PAY_BUTTON}
+          name={NFTEventName.NFT_BUY_BAG_PAY}
+          element={InterfaceElementName.NFT_BUY_BAG_PAY_BUTTON}
           properties={{ ...eventProperties }}
           shouldLogImpression={connected && !disabled}
         >
@@ -180,6 +184,6 @@ export const BagFooter = ({
           </ActionButton>
         </TraceEvent>
       </Footer>
-    </Column>
+    </FooterContainer>
   )
 }

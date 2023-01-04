@@ -4,6 +4,7 @@ import { Box } from 'nft/components/Box'
 import { Row } from 'nft/components/Flex'
 import { ArrowRightIcon, HazardIcon, LoadingIcon, XMarkIcon } from 'nft/components/icons'
 import { bodySmall } from 'nft/css/common.css'
+import { themeVars } from 'nft/css/sprinkles.css'
 import { useNFTList, useSellAsset } from 'nft/hooks'
 import { Listing, ListingStatus, WalletAsset } from 'nft/types'
 import { pluralize } from 'nft/utils/roundAndPluralize'
@@ -51,9 +52,7 @@ export const ListingButton = ({ onClick, buttonText, showWarningOverride = false
     listingsAboveSellOrderFloor,
     invalidPrices,
   ] = useMemo(() => {
-    const noMarketplacesSelected = sellAssets.some(
-      (asset: WalletAsset) => asset.marketplaces === undefined || asset.marketplaces.length === 0
-    )
+    const noMarketplacesSelected = sellAssets.some((asset: WalletAsset) => asset.marketplaces === undefined)
     const missingExpiration = sellAssets.some((asset) => {
       return asset.expirationTime != null && asset.expirationTime * 1000 - Date.now() < ms`60 seconds`
     })
@@ -72,7 +71,7 @@ export const ListingButton = ({ onClick, buttonText, showWarningOverride = false
         for (const listing of asset.newListings) {
           if (!listing.price) listingsMissingPrice.push([asset, listing])
           else if (isNaN(listing.price) || listing.price < 0) invalidPrices.push([asset, listing])
-          else if (listing.price < asset.floorPrice && !listing.overrideFloorPrice)
+          else if (listing.price < (asset?.floorPrice ?? 0) && !listing.overrideFloorPrice)
             listingsBelowFloor.push([asset, listing])
           else if (asset.floor_sell_order_price && listing.price > asset.floor_sell_order_price)
             listingsAboveSellOrderFloor.push([asset, listing])
@@ -187,15 +186,15 @@ export const ListingButton = ({ onClick, buttonText, showWarningOverride = false
           <Box marginLeft="4" marginRight="8">
             {warningMessage}
           </Box>
-          {!!disableListButton ? (
+          {disableListButton ? (
             <Box paddingTop="6">
-              <XMarkIcon fill="textSecondary" height="20" width="20" />
+              <XMarkIcon fill={themeVars.colors.textSecondary} height="20" width="20" />
             </Box>
           ) : (
             <Row
               marginLeft="72"
               cursor="pointer"
-              color="genieBlue"
+              color="accentAction"
               onClick={() => {
                 setShowWarning(false)
                 setCanContinue(true)
@@ -211,7 +210,7 @@ export const ListingButton = ({ onClick, buttonText, showWarningOverride = false
       <Box
         as="button"
         border="none"
-        backgroundColor="genieBlue"
+        backgroundColor="accentAction"
         cursor={
           [ListingStatus.APPROVED, ListingStatus.PENDING, ListingStatus.SIGNING].includes(listingStatus) ||
           disableListButton

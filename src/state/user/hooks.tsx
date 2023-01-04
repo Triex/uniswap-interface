@@ -17,9 +17,8 @@ import { AppState } from '../index'
 import {
   addSerializedPair,
   addSerializedToken,
-  removeSerializedToken,
+  updateFiatOnrampAcknowledgments,
   updateHideClosedPositions,
-  updateShowSurveyPopup,
   updateUserClientSideRouter,
   updateUserDarkMode,
   updateUserDeadline,
@@ -105,16 +104,24 @@ export function useExpertModeManager(): [boolean, () => void] {
   return [expertMode, toggleSetExpertMode]
 }
 
-export function useShowSurveyPopup(): [boolean | undefined, (showPopup: boolean) => void] {
+interface FiatOnrampAcknowledgements {
+  renderCount: number
+  system: boolean
+  user: boolean
+}
+export function useFiatOnrampAck(): [
+  FiatOnrampAcknowledgements,
+  (acknowledgements: Partial<FiatOnrampAcknowledgements>) => void
+] {
   const dispatch = useAppDispatch()
-  const showSurveyPopup = useAppSelector((state) => state.user.showSurveyPopup)
-  const toggleShowSurveyPopup = useCallback(
-    (showPopup: boolean) => {
-      dispatch(updateShowSurveyPopup({ showSurveyPopup: showPopup }))
+  const fiatOnrampAcknowledgments = useAppSelector((state) => state.user.fiatOnrampAcknowledgments)
+  const setAcknowledgements = useCallback(
+    (acks: Partial<FiatOnrampAcknowledgements>) => {
+      dispatch(updateFiatOnrampAcknowledgments(acks))
     },
     [dispatch]
   )
-  return [showSurveyPopup, toggleShowSurveyPopup]
+  return [fiatOnrampAcknowledgments, setAcknowledgements]
 }
 
 export function useClientSideRouter(): [boolean, (userClientSideRouter: boolean) => void] {
@@ -218,16 +225,6 @@ export function useAddUserToken(): (token: Token) => void {
   return useCallback(
     (token: Token) => {
       dispatch(addSerializedToken({ serializedToken: serializeToken(token) }))
-    },
-    [dispatch]
-  )
-}
-
-export function useRemoveUserAddedToken(): (chainId: number, address: string) => void {
-  const dispatch = useAppDispatch()
-  return useCallback(
-    (chainId: number, address: string) => {
-      dispatch(removeSerializedToken({ chainId, address }))
     },
     [dispatch]
   )

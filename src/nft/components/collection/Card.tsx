@@ -2,6 +2,7 @@ import { BigNumber } from '@ethersproject/bignumber'
 import clsx from 'clsx'
 import { OpacityHoverState } from 'components/Common'
 import { MouseoverTooltip } from 'components/Tooltip'
+import { NftStandard } from 'graphql/data/__generated__/types-and-hooks'
 import { Box } from 'nft/components/Box'
 import { Row } from 'nft/components/Flex'
 import {
@@ -16,7 +17,7 @@ import {
 import { body, bodySmall, buttonTextMedium, subhead } from 'nft/css/common.css'
 import { themeVars } from 'nft/css/sprinkles.css'
 import { useIsMobile } from 'nft/hooks'
-import { GenieAsset, Rarity, TokenType, WalletAsset } from 'nft/types'
+import { GenieAsset, Rarity, UniformAspectRatio, UniformAspectRatios, WalletAsset } from 'nft/types'
 import { fallbackProvider, isAudio, isVideo, putCommas } from 'nft/utils'
 import { floorFormatter } from 'nft/utils/numbers'
 import {
@@ -34,7 +35,6 @@ import {
 import { AlertTriangle } from 'react-feather'
 import styled from 'styled-components/macro'
 import { ThemedText } from 'theme'
-import { colors } from 'theme/colors'
 
 import * as styles from './Card.css'
 
@@ -241,16 +241,62 @@ const ImageContainer = ({ children, isDisabled = false }: { children: ReactNode;
   <StyledImageContainer isDisabled={isDisabled}>{children}</StyledImageContainer>
 )
 
-/* -------- CARD IMAGE -------- */
+const handleUniformAspectRatio = (
+  uniformAspectRatio: UniformAspectRatio,
+  e: React.SyntheticEvent<HTMLElement, Event>,
+  setUniformAspectRatio?: (uniformAspectRatio: UniformAspectRatio) => void,
+  renderedHeight?: number,
+  setRenderedHeight?: (renderedHeight: number | undefined) => void
+) => {
+  if (uniformAspectRatio !== UniformAspectRatios.square && setUniformAspectRatio) {
+    const height = e.currentTarget.clientHeight
+    const width = e.currentTarget.clientWidth
+    const aspectRatio = width / height
 
-const Image = () => {
+    if (
+      (!renderedHeight || renderedHeight !== height) &&
+      aspectRatio < 1 &&
+      uniformAspectRatio !== UniformAspectRatios.square &&
+      setRenderedHeight
+    ) {
+      setRenderedHeight(height)
+    }
+
+    if (uniformAspectRatio === UniformAspectRatios.unset) {
+      setUniformAspectRatio(aspectRatio >= 1 ? UniformAspectRatios.square : aspectRatio)
+    } else if (uniformAspectRatio !== aspectRatio) {
+      setUniformAspectRatio(UniformAspectRatios.square)
+      setRenderedHeight && setRenderedHeight(undefined)
+    }
+  }
+}
+
+function getHeightFromAspectRatio(uniformAspectRatio: UniformAspectRatio, renderedHeight?: number): number | undefined {
+  return uniformAspectRatio === UniformAspectRatios.square || uniformAspectRatio === UniformAspectRatios.unset
+    ? undefined
+    : renderedHeight
+}
+
+interface ImageProps {
+  uniformAspectRatio?: UniformAspectRatio
+  setUniformAspectRatio?: (uniformAspectRatio: UniformAspectRatio) => void
+  renderedHeight?: number
+  setRenderedHeight?: (renderedHeight: number | undefined) => void
+}
+
+const Image = ({
+  uniformAspectRatio = UniformAspectRatios.square,
+  setUniformAspectRatio,
+  renderedHeight,
+  setRenderedHeight,
+}: ImageProps) => {
   const { hovered, asset } = useCardContext()
   const [noContent, setNoContent] = useState(!asset.smallImageUrl && !asset.imageUrl)
   const [loaded, setLoaded] = useState(false)
   const isMobile = useIsMobile()
 
   if (noContent) {
-    return <NoContentContainer />
+    return <NoContentContainer height={getHeightFromAspectRatio(uniformAspectRatio, renderedHeight)} />
   }
 
   return (
@@ -259,7 +305,7 @@ const Image = () => {
         as="img"
         width="full"
         style={{
-          aspectRatio: '1',
+          aspectRatio: `${uniformAspectRatio === UniformAspectRatios.square || !setUniformAspectRatio ? '1' : 'auto'}`,
           transition: 'transform 0.25s ease 0s',
         }}
         src={asset.imageUrl || asset.smallImageUrl}
@@ -267,6 +313,7 @@ const Image = () => {
         draggable={false}
         onError={() => setNoContent(true)}
         onLoad={(e) => {
+          handleUniformAspectRatio(uniformAspectRatio, e, setUniformAspectRatio, renderedHeight, setRenderedHeight)
           setLoaded(true)
         }}
         className={clsx(hovered && !isMobile && styles.cardImageHover, !loaded && styles.loadingBackground)}
@@ -275,12 +322,26 @@ const Image = () => {
   )
 }
 
+function getMediaAspectRatio(
+  uniformAspectRatio: UniformAspectRatio,
+  setUniformAspectRatio?: (uniformAspectRatio: UniformAspectRatio) => void
+): string {
+  return uniformAspectRatio === UniformAspectRatios.square || !setUniformAspectRatio ? '1' : 'auto'
+}
+
 interface MediaProps {
   shouldPlay: boolean
   setCurrentTokenPlayingMedia: (tokenId: string | undefined) => void
 }
 
-const Video = ({ shouldPlay, setCurrentTokenPlayingMedia }: MediaProps) => {
+const Video = ({
+  uniformAspectRatio = UniformAspectRatios.square,
+  setUniformAspectRatio,
+  renderedHeight,
+  setRenderedHeight,
+  shouldPlay,
+  setCurrentTokenPlayingMedia,
+}: MediaProps & ImageProps) => {
   const vidRef = useRef<HTMLVideoElement>(null)
   const { hovered, asset } = useCardContext()
   const [noContent, setNoContent] = useState(!asset.smallImageUrl && !asset.imageUrl)
@@ -294,7 +355,7 @@ const Video = ({ shouldPlay, setCurrentTokenPlayingMedia }: MediaProps) => {
   }
 
   if (noContent) {
-    return <NoContentContainer />
+    return <NoContentContainer height={getHeightFromAspectRatio(uniformAspectRatio, renderedHeight)} />
   }
 
   return (
@@ -305,7 +366,7 @@ const Video = ({ shouldPlay, setCurrentTokenPlayingMedia }: MediaProps) => {
           alt={asset.name || asset.tokenId}
           width="full"
           style={{
-            aspectRatio: '1',
+            aspectRatio: getMediaAspectRatio(uniformAspectRatio, setUniformAspectRatio),
             transition: 'transform 0.25s ease 0s',
             willChange: 'transform',
           }}
@@ -313,7 +374,8 @@ const Video = ({ shouldPlay, setCurrentTokenPlayingMedia }: MediaProps) => {
           objectFit="contain"
           draggable={false}
           onError={() => setNoContent(true)}
-          onLoad={() => {
+          onLoad={(e) => {
+            handleUniformAspectRatio(uniformAspectRatio, e, setUniformAspectRatio, renderedHeight, setRenderedHeight)
             setImageLoaded(true)
           }}
           visibility={shouldPlay ? 'hidden' : 'visible'}
@@ -340,7 +402,9 @@ const Video = ({ shouldPlay, setCurrentTokenPlayingMedia }: MediaProps) => {
               ref={vidRef}
               width="full"
               style={{
-                aspectRatio: '1',
+                aspectRatio: `${
+                  uniformAspectRatio === UniformAspectRatios.square || !setUniformAspectRatio ? '1' : 'auto'
+                }`,
               }}
               onEnded={(e) => {
                 e.preventDefault()
@@ -373,7 +437,14 @@ const Video = ({ shouldPlay, setCurrentTokenPlayingMedia }: MediaProps) => {
   )
 }
 
-const Audio = ({ shouldPlay, setCurrentTokenPlayingMedia }: MediaProps) => {
+const Audio = ({
+  uniformAspectRatio = UniformAspectRatios.square,
+  setUniformAspectRatio,
+  renderedHeight,
+  setRenderedHeight,
+  shouldPlay,
+  setCurrentTokenPlayingMedia,
+}: MediaProps & ImageProps) => {
   const audRef = useRef<HTMLAudioElement>(null)
   const { hovered, asset } = useCardContext()
   const [noContent, setNoContent] = useState(!asset.smallImageUrl && !asset.imageUrl)
@@ -387,7 +458,7 @@ const Audio = ({ shouldPlay, setCurrentTokenPlayingMedia }: MediaProps) => {
   }
 
   if (noContent) {
-    return <NoContentContainer />
+    return <NoContentContainer height={getHeightFromAspectRatio(uniformAspectRatio, renderedHeight)} />
   }
 
   return (
@@ -398,7 +469,7 @@ const Audio = ({ shouldPlay, setCurrentTokenPlayingMedia }: MediaProps) => {
           alt={asset.name || asset.tokenId}
           width="full"
           style={{
-            aspectRatio: '1',
+            aspectRatio: getMediaAspectRatio(uniformAspectRatio, setUniformAspectRatio),
             transition: 'transform 0.4s ease 0s',
           }}
           src={asset.imageUrl || asset.smallImageUrl}
@@ -406,6 +477,7 @@ const Audio = ({ shouldPlay, setCurrentTokenPlayingMedia }: MediaProps) => {
           draggable={false}
           onError={() => setNoContent(true)}
           onLoad={(e) => {
+            handleUniformAspectRatio(uniformAspectRatio, e, setUniformAspectRatio, renderedHeight, setRenderedHeight)
             setImageLoaded(true)
           }}
           className={clsx(hovered && !isMobile && styles.cardImageHover, !imageLoaded && styles.loadingBackground)}
@@ -490,10 +562,11 @@ const InfoContainer = ({ children }: { children: ReactNode }) => {
 
 const TruncatedTextRow = styled(Row)`
   padding: 2px;
-  white-space: nowrap;
+  white-space: pre;
   text-overflow: ellipsis;
   display: block;
   overflow: hidden;
+  flex: 1;
 `
 
 interface ProfileNftDetailsProps {
@@ -504,11 +577,10 @@ interface ProfileNftDetailsProps {
 const ProfileNftDetails = ({ asset, hideDetails }: ProfileNftDetailsProps) => {
   const assetName = () => {
     if (!asset.name && !asset.tokenId) return
-    return !!asset.name ? asset.name : `#${asset.tokenId}`
+    return asset.name ? asset.name : `#${asset.tokenId}`
   }
 
-  const shouldShowUserListedPrice =
-    !!asset.floor_sell_order_price && !asset.notForSale && asset.asset_contract.tokenType !== TokenType.ERC1155
+  const shouldShowUserListedPrice = !asset.notForSale && asset.asset_contract.tokenType !== NftStandard.Erc1155
 
   return (
     <Box overflow="hidden" width="full" flexWrap="nowrap">
@@ -517,7 +589,7 @@ const ProfileNftDetails = ({ asset, hideDetails }: ProfileNftDetailsProps) => {
           <TruncatedTextRow className={bodySmall} style={{ color: themeVars.colors.textSecondary }}>
             {!!asset.asset_contract.name && <span>{asset.asset_contract.name}</span>}
           </TruncatedTextRow>
-          {asset.collectionIsVerified && <VerifiedIcon height="16px" width="16px" fill={colors.magentaVibrant} />}
+          {asset.collectionIsVerified && <VerifiedIcon height="18px" width="18px" />}
         </PrimaryDetails>
         {!hideDetails && <DetailsLink />}
       </PrimaryRow>
@@ -532,11 +604,11 @@ const ProfileNftDetails = ({ asset, hideDetails }: ProfileNftDetailsProps) => {
         </TruncatedTextRow>
         {asset.susFlag && <Suspicious />}
       </Row>
-      {shouldShowUserListedPrice && (
-        <TruncatedTextRow className={buttonTextMedium} style={{ color: themeVars.colors.textPrimary }}>
-          {`${floorFormatter(asset.floor_sell_order_price)} ETH`}
-        </TruncatedTextRow>
-      )}
+      <TruncatedTextRow className={buttonTextMedium} style={{ color: themeVars.colors.textPrimary }}>
+        {shouldShowUserListedPrice && asset.floor_sell_order_price
+          ? `${floorFormatter(asset.floor_sell_order_price)} ETH`
+          : ' '}
+      </TruncatedTextRow>
     </Box>
   )
 }
@@ -649,7 +721,7 @@ const DetailsLink = () => {
         e.stopPropagation()
       }}
     >
-      <Box>Details</Box>
+      <Box data-testid="nft-details-link">Details</Box>
     </DetailsLinkContainer>
   )
 }
@@ -731,12 +803,13 @@ const Pool = () => {
   )
 }
 
-const NoContentContainer = () => (
+const NoContentContainer = ({ height }: { height?: number }) => (
   <>
     <Box
       position="relative"
       width="full"
       style={{
+        height: height ? `${height}px` : 'auto',
         paddingTop: '100%',
         background: `linear-gradient(90deg, ${themeVars.colors.backgroundSurface} 0%, ${themeVars.colors.backgroundInteractive} 95.83%)`,
       }}

@@ -2,10 +2,10 @@ import type { JsonRpcSigner, Web3Provider } from '@ethersproject/providers'
 import { LOOKSRARE_MARKETPLACE_CONTRACT, X2Y2_TRANSFER_CONTRACT } from 'nft/queries'
 import { OPENSEA_CROSS_CHAIN_CONDUIT } from 'nft/queries/openSea'
 import { AssetRow, CollectionRow, ListingMarket, ListingRow, ListingStatus, WalletAsset } from 'nft/types'
-import { approveCollection, signListing } from 'nft/utils/listNfts'
+import { approveCollection, LOOKS_RARE_CREATOR_BASIS_POINTS, signListing } from 'nft/utils/listNfts'
 import { Dispatch } from 'react'
 
-export const updateStatus = ({
+const updateStatus = ({
   listing,
   newStatus,
   rows,
@@ -58,14 +58,15 @@ export async function approveCollectionRow(
       : marketplace.name === 'X2Y2'
       ? X2Y2_TRANSFER_CONTRACT
       : looksRareAddress
-  await approveCollection(spender ?? '', collectionAddress, signer, (newStatus: ListingStatus) =>
-    updateStatus({
-      listing: collectionRow,
-      newStatus,
-      rows: collectionsRequiringApproval,
-      setRows: setCollectionsRequiringApproval as Dispatch<AssetRow[]>,
-    })
-  )
+  !!collectionAddress &&
+    (await approveCollection(spender, collectionAddress, signer, (newStatus: ListingStatus) =>
+      updateStatus({
+        listing: collectionRow,
+        newStatus,
+        rows: collectionsRequiringApproval,
+        setRows: setCollectionsRequiringApproval as Dispatch<AssetRow[]>,
+      })
+    ))
   if (collectionRow.status === ListingStatus.REJECTED || collectionRow.status === ListingStatus.FAILED) pauseAllRows()
 }
 
@@ -124,11 +125,11 @@ export const getTotalEthValue = (sellAssets: WalletAsset[]) => {
   const total = sellAssets.reduce((total, asset: WalletAsset) => {
     if (asset.newListings?.length) {
       const maxListing = asset.newListings.reduce((a, b) => ((a.price ?? 0) > (b.price ?? 0) ? a : b))
-      return (
-        total +
-        (maxListing.price ?? 0) -
-        (maxListing.price ?? 0) * ((maxListing.marketplace.fee + asset.basisPoints / 100) / 100)
-      )
+      // LooksRare is a unique case where creator royalties are a flat 0.5% or 50 basis points
+      const maxFee =
+        maxListing.marketplace.fee +
+        (maxListing.marketplace.name === 'LooksRare' ? LOOKS_RARE_CREATOR_BASIS_POINTS : asset?.basisPoints ?? 0) / 100
+      return total + (maxListing.price ?? 0) - (maxListing.price ?? 0) * (maxFee / 100)
     }
     return total
   }, 0)
@@ -147,6 +148,7 @@ export const getListings = (sellAssets: WalletAsset[]): [CollectionRow[], Listin
         status: ListingStatus.DEFINED,
         asset,
         marketplace,
+        price: asset.newListings?.find((listing) => listing.marketplace.name === marketplace.name)?.price,
       }
       newListings.push(newListing)
       if (
@@ -170,7 +172,7 @@ export const getListings = (sellAssets: WalletAsset[]): [CollectionRow[], Listin
   return [newCollectionsToApprove, newListings]
 }
 
-export type ListingState = {
+type ListingState = {
   allListingsPending: boolean
   allListingsDefined: boolean
   allListingsApproved: boolean

@@ -1,5 +1,5 @@
 import { sendAnalyticsEvent } from '@uniswap/analytics'
-import { EventName, FilterTypes } from '@uniswap/analytics-events'
+import { NFTEventName, NFTFilterTypes } from '@uniswap/analytics-events'
 import clsx from 'clsx'
 import { Box } from 'nft/components/Box'
 import * as styles from 'nft/components/collection/Filters.css'
@@ -35,13 +35,14 @@ const MarketNameWrapper = styled(Row)`
 `
 
 export const MARKETPLACE_ITEMS = {
-  looksrare: 'LooksRare',
-  nft20: 'NFT20',
-  nftx: 'NFTX',
-  opensea: 'OpenSea',
   x2y2: 'X2Y2',
-  cryptopunks: 'LarvaLabs',
+  opensea: 'OpenSea',
+  looksrare: 'LooksRare',
   sudoswap: 'SudoSwap',
+
+  nftx: 'NFTX',
+  nft20: 'NFT20',
+  cryptopunks: 'LarvaLabs',
 }
 
 function getMarketLogoSrc(market: string) {
@@ -97,7 +98,7 @@ const MarketplaceItem = ({
       removeMarket(value)
       setCheckboxSelected(false)
     }
-    sendAnalyticsEvent(EventName.NFT_FILTER_SELECTED, { filter_type: FilterTypes.MARKETPLACE })
+    sendAnalyticsEvent(NFTEventName.NFT_FILTER_SELECTED, { filter_type: NFTFilterTypes.MARKETPLACE })
   }
 
   const checkbox = (
